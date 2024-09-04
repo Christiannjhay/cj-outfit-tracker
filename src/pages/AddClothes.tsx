@@ -8,14 +8,17 @@ import {
   StyleSheet,
   ToastAndroid,
   Alert,
+  TouchableOpacity,
+  TextInput,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import { getApps, initializeApp } from "firebase/app";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import * as uuid from "uuid";
 import "react-native-get-random-values";
-import { useAuth } from '../contexts/AuthContext';
-import { supabase } from '../lib/supabaseclient'; 
+import { useAuth } from "../contexts/AuthContext";
+import { supabase } from "../lib/supabaseclient";
+import DropDownPicker from "react-native-dropdown-picker";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDK-dYs6IONmxZ0wQ5gC3FrFdXe3tMvPIw",
@@ -37,7 +40,14 @@ export default function ImagePickerExample() {
   const [image, setImage] = useState<string | null>(null);
   const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
-
+  const [description, setDescription] = useState("");
+  const [open, setOpen] = useState(false);
+  const [value, setValue] = useState<string | null>(null);
+  const [items, setItems] = useState([
+    { label: "Tops", value: "Tops" },
+    { label: "Bottoms", value: "Bottoms" },
+    { label: "Footwear", value: "Footwear" },
+  ]);
   useEffect(() => {
     const requestPermission = async () => {
       const { status } =
@@ -68,19 +78,25 @@ export default function ImagePickerExample() {
       try {
         setUploading(true);
         const uploadUrl = await uploadImageAsync(selectedImageUri);
-        setImage(uploadUrl); // Update image with the upload URL
+        setImage(uploadUrl);
 
-        // Save image details to Supabase
         const { data, error } = await supabase
-          .from('clothes')
-          .insert([{ user_id: user.id, image_url: uploadUrl }]);
-        
+          .from("clothes")
+          .insert([
+            {
+              user_id: user.id,
+              image_url: uploadUrl,
+              description: description,
+              category: value,
+            },
+          ]);
+
         if (error) {
           throw error;
         }
 
         setSelectedImageUri(null);
-        Alert.alert("Success", "Image saved successfully!");
+        ToastAndroid.show("Image saved successfully!", ToastAndroid.SHORT);
       } catch (e) {
         console.error(e);
         Alert.alert("Error", "Upload failed, sorry :(");
@@ -105,9 +121,41 @@ export default function ImagePickerExample() {
         </View>
       )}
 
-      <Button title="Choose Image" onPress={pickImage} />
-
-      <Button title="Save" onPress={saveImage} disabled={uploading || !selectedImageUri} />
+      <TouchableOpacity style={styles.button} onPress={pickImage}>
+        <Text style={styles.buttonText}>Choose Image</Text>
+      </TouchableOpacity>
+      <View style={styles.dropContainer}>
+        <DropDownPicker
+          open={open}
+          value={value}
+          items={items}
+          setOpen={setOpen}
+          setValue={setValue}
+          setItems={setItems}
+          style={styles.dropdown}
+          placeholder="Select an option"
+          dropDownContainerStyle={styles.dropdownContainer}
+          textStyle={styles.dropdownText}
+          placeholderStyle={styles.dropdownPlaceholder}
+        />
+      </View>
+      <TextInput
+        className="m-2 w-11/12 rounded-3xl border-2 border-[#081F5C] p-2 px-6 mt-4"
+        placeholder="Description"
+        value={description}
+        onChangeText={setDescription}
+      />
+      <TouchableOpacity
+        style={[
+          styles.button,
+          styles.saveButton,
+          { opacity: uploading || !selectedImageUri ? 0.5 : 1 },
+        ]}
+        onPress={saveImage}
+        disabled={uploading || !selectedImageUri}
+      >
+        <Text style={styles.buttonText}>Save</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -138,6 +186,57 @@ const styles = StyleSheet.create({
   image: {
     width: 250,
     height: 250,
+  },
+  saveButton: {
+    marginTop: 10,
+    width: "91.66%",
+    backgroundColor: "#081F5C",
+    padding: 10,
+    borderRadius: 20,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  button: {
+    marginTop: 20,
+    backgroundColor: "#081F5C",
+    padding: 10,
+    borderRadius: 5,
+    elevation: 2,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 2,
+  },
+  buttonText: {
+    color: "#fff", // Change this to your desired text color
+    fontSize: 16,
+    fontWeight: "bold",
+    textAlign: "center",
+  },
+  dropdown: {
+    marginTop: 10,
+    width: "91.66%",
+    borderColor: "#081F5C",
+    borderWidth: 2,
+    borderRadius: 20,
+  },
+  dropContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  dropdownContainer: {
+    flex: 1,
+    justifyContent: "center",
+    borderColor: "#081F5C",
+  },
+  dropdownText: {
+    color: "#000",
+  },
+  dropdownPlaceholder: {
+    color: "#081F5C",
   },
 });
 
